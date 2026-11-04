@@ -1,0 +1,61 @@
+name: Build and Release Windows Installer
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run Build Script
+        shell: pwsh
+        run: |
+          $ver = "1.0.${{ github.run_number }}"
+          .\build.ps1 -Version $ver
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "Image Optimizer v1.0.${{ github.run_number }}"
+          body: |
+            ## Image Optimizer v1.0.${{ github.run_number }}
+            
+            ### Features:
+            - **Universal Windows (10/11) support**: Works on any 64-bit Windows device out of the box with zero prerequisites.
+            - **No file replacement**: Dropping duplicate image names automatically increments to `name (1).ext`, `name (2).ext` instead of overwriting existing files.
+            - **Windows Pictures Integration**: Automatically sets up `%USERPROFILE%\Pictures\optimize` with `webp`, `jpg`, and `png` subfolders.
+            - **Auto-start**: Runs automatically and silently on Windows boot via system tray.
+            
+            ### Installation:
+            1. Download **`ImageOptimizer-Setup.exe`** below.
+            2. Run the installer (takes 3 seconds, no admin rights required).
+            3. Paste or drop images into `Pictures\optimize\webp`, `Pictures\optimize\jpg`, or `Pictures\optimize\png`.
+          files: dist/ImageOptimizer-Setup.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
