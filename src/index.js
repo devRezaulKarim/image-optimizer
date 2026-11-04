@@ -4,6 +4,9 @@ const path = require('path');
 const chokidar = require('chokidar');
 const sharp = require('sharp');
 
+// Crucial for Windows: Disable Sharp internal file caching so it NEVER locks files on disk
+sharp.cache(false);
+
 // Target directory in Windows Pictures folder
 const IMAGES_DIR = process.env.IMAGE_OPTIMIZER_DIR || path.join(os.homedir(), 'Pictures', 'optimize');
 
@@ -73,6 +76,39 @@ function getNonConflictingPath(dir, baseName, ext) {
   return path.join(dir, `${baseName} (${index})${ext}`);
 }
 
+// Read file into memory buffer with retries to ensure Windows file handles are immediately closed
+async function readFileWithRetry(filePath, maxRetries = 8, delayMs = 150) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return fs.readFileSync(filePath);
+    } catch (err) {
+      if ((err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'ENOENT') && i < maxRetries - 1) {
+        await new Promise((res) => setTimeout(res, delayMs * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+// Delete file with retries to overcome Windows antivirus / search indexer locks
+async function unlinkWithRetry(filePath, maxRetries = 8, delayMs = 150) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return;
+    } catch (err) {
+      if ((err.code === 'EBUSY' || err.code === 'EPERM') && i < maxRetries - 1) {
+        await new Promise((res) => setTimeout(res, delayMs * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function processImage(filePath) {
   const normalizedPath = path.resolve(filePath);
   const parsed = path.parse(normalizedPath);
@@ -123,7 +159,10 @@ async function processImage(filePath) {
       targetPath = getNonConflictingPath(parsed.dir, parsed.name, config.ext);
     }
 
-    const tempPath = path.join(parsed.dir, `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${parsed.name}${config.ext}`);
+    const tempPath = path.join(
+      parsed.dir,
+      `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${parsed.name}${config.ext}`
+    );
     inProgress.add(tempPath);
     inProgress.add(targetPath);
 
@@ -132,7 +171,10 @@ async function processImage(filePath) {
     const originalStats = fs.statSync(normalizedPath);
     const originalSizeKb = (originalStats.size / 1024).toFixed(1);
 
-    const transform = sharp(normalizedPath);
+    // Read into in-memory buffer so Windows never locks the physical file
+    const fileBuffer = await readFileWithRetry(normalizedPath);
+    const transform = sharp(fileBuffer);
+
     if (config.format === 'webp') {
       transform.webp(config.options);
     } else if (config.format === 'jpeg') {
@@ -143,20 +185,15 @@ async function processImage(filePath) {
 
     await transform.toFile(tempPath);
 
-    // If format changed, remove the original source file
-    if (!isSameFormat && fs.existsSync(normalizedPath)) {
-      try {
-        fs.unlinkSync(normalizedPath);
-      } catch (err) {
-        console.warn(`[Warning] Could not remove original file: ${err.message}`);
-      }
+    // If format changed, remove the original source file (e.g. .png dropped into jpg folder)
+    if (!isSameFormat) {
+      await unlinkWithRetry(normalizedPath);
+      console.log(`[Cleaned] Removed original source file: ${parsed.base}`);
     }
 
     // Replace target path atomically with the newly compressed file
     if (fs.existsSync(targetPath)) {
-      try {
-        fs.unlinkSync(targetPath);
-      } catch {}
+      await unlinkWithRetry(targetPath);
     }
     fs.renameSync(tempPath, targetPath);
 

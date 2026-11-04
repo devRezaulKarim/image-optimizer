@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -13,10 +14,20 @@ namespace ImageOptimizer
         private static Process nodeProcess;
         private static string appDir;
         private static string picturesDir;
+        private static Mutex singleInstanceMutex;
 
         [STAThread]
         static void Main()
         {
+            // Ensure only one instance of Image Optimizer runs at any time
+            bool createdNew;
+            singleInstanceMutex = new Mutex(true, "ImageOptimizer_SingleInstance_Mutex_9DF71783", out createdNew);
+            if (!createdNew)
+            {
+                // App is already running in background
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -87,7 +98,15 @@ namespace ImageOptimizer
                     Process.Start("explorer.exe", picturesDir);
             };
 
-            Application.ApplicationExit += (s, e) => StopWorker();
+            Application.ApplicationExit += (s, e) => {
+                StopWorker();
+                if (singleInstanceMutex != null)
+                {
+                    singleInstanceMutex.ReleaseMutex();
+                    singleInstanceMutex.Close();
+                }
+            };
+
             Application.Run();
         }
 
