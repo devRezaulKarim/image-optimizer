@@ -44,16 +44,28 @@ jobs:
           body: |
             ## Image Optimizer v1.0.${{ github.run_number }}
             
-            ### Features:
-            - **Universal Windows (10/11) support**: Works on any 64-bit Windows device out of the box with zero prerequisites.
-            - **No file replacement**: Dropping duplicate image names automatically increments to `name (1).ext`, `name (2).ext` instead of overwriting existing files.
-            - **Windows Pictures Integration**: Automatically sets up `%USERPROFILE%\Pictures\optimize` with `webp`, `jpg`, and `png` subfolders.
-            - **Auto-start**: Runs automatically and silently on Windows boot via system tray.
+            ### ✨ What's New:
+            - **Custom Icon**: Added a clean application icon embedded in the installer, executable, and system tray.
+            - **Universal Windows (10/11) Compatibility**: Works out of the box with zero external software required.
+            - **No Image Overwrites**: Dropping duplicate image names automatically generates `photo (1).webp`, `photo (2).webp`, etc.
+            - **Windows Pictures Integration**: Monitors `%USERPROFILE%\Pictures\optimize` (`webp`, `jpg`, `png`).
+            - **Silent Windows Startup**: Starts minimized in the system tray when Windows boots.
             
-            ### Installation:
-            1. Download **`ImageOptimizer-Setup.exe`** below.
-            2. Run the installer (takes 3 seconds, no admin rights required).
-            3. Paste or drop images into `Pictures\optimize\webp`, `Pictures\optimize\jpg`, or `Pictures\optimize\png`.
+            ---
+            
+            ### 🛡️ Windows SmartScreen Note:
+            Because this is a freshly compiled open-source installer without an expensive commercial EV certificate, Windows SmartScreen may show:
+            > *"Windows protected your PC - Microsoft Defender SmartScreen prevented an unrecognized app from starting"*
+            
+            **To run the installer:**
+            1. Click **"More info"** on the popup.
+            2. Click the **"Run anyway"** button.
+            *(Or right-click `ImageOptimizer-Setup.exe` ➔ Properties ➔ check **Unblock** ➔ Apply).*
+            
+            ---
+            
+            ### 📥 Download:
+            Download **`ImageOptimizer-Setup.exe`** below to install.
           files: dist/ImageOptimizer-Setup.exe
           draft: false
           prerelease: false

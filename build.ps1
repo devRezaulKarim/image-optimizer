@@ -8,8 +8,16 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host "==> Building Image Optimizer v$Version..." -ForegroundColor Cyan
 
-# 1. Compile launcher with Windows native csc.exe
-Write-Host "==> Compiling native launcher (ImageOptimizer.exe)..."
+# 0. Ensure assets exist (generate if missing)
+$assetsDir = Join-Path $ScriptDir "assets"
+$iconIco = Join-Path $assetsDir "icon.ico"
+if (-not (Test-Path $iconIco)) {
+    Write-Host "==> Generating application icons..."
+    node (Join-Path $ScriptDir "scripts\generate-icon.js")
+}
+
+# 1. Compile launcher with Windows native csc.exe and embed icon
+Write-Host "==> Compiling native launcher with custom icon (ImageOptimizer.exe)..."
 $cscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 if (-not (Test-Path $cscPath)) {
     throw "C# compiler not found at $cscPath"
@@ -17,7 +25,7 @@ if (-not (Test-Path $cscPath)) {
 
 $launcherSrc = Join-Path $ScriptDir "launcher.cs"
 $launcherExe = Join-Path $ScriptDir "ImageOptimizer.exe"
-& $cscPath /target:winexe /optimize+ /out:$launcherExe /reference:System.Windows.Forms.dll,System.Drawing.dll $launcherSrc
+& $cscPath /target:winexe /optimize+ "/win32icon:$iconIco" /out:$launcherExe /reference:System.Windows.Forms.dll,System.Drawing.dll $launcherSrc
 if ($LASTEXITCODE -ne 0) { throw "Launcher compilation failed." }
 
 # 2. Ensure node.exe exists in project root for bundling

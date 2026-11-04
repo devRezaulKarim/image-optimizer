@@ -38,7 +38,25 @@ namespace ImageOptimizer
             // Setup tray icon
             trayIcon = new NotifyIcon();
             trayIcon.Text = "Image Optimizer (Active)";
-            trayIcon.Icon = SystemIcons.Application;
+
+            // Load custom icon if available
+            try
+            {
+                string iconPath = Path.Combine(appDir, "assets", "icon.ico");
+                if (File.Exists(iconPath))
+                {
+                    trayIcon.Icon = new Icon(iconPath);
+                }
+                else
+                {
+                    trayIcon.Icon = SystemIcons.Application;
+                }
+            }
+            catch
+            {
+                trayIcon.Icon = SystemIcons.Application;
+            }
+
             trayIcon.Visible = true;
 
             var contextMenu = new ContextMenuStrip();
@@ -80,7 +98,7 @@ namespace ImageOptimizer
                 string nodeExe = Path.Combine(appDir, "node.exe");
                 if (!File.Exists(nodeExe))
                 {
-                    nodeExe = "node"; // Fallback to PATH if local node.exe not found
+                    nodeExe = "node";
                 }
 
                 string scriptPath = Path.Combine(appDir, "src", "index.js");
