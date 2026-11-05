@@ -8,12 +8,11 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host "==> Building Image Optimizer v$Version..." -ForegroundColor Cyan
 
-# 0. Ensure assets exist (generate if missing)
+# 0. Ensure assets exist
 $assetsDir = Join-Path $ScriptDir "assets"
 $iconIco = Join-Path $assetsDir "icon.ico"
 if (-not (Test-Path $iconIco)) {
-    Write-Host "==> Generating application icons..."
-    node (Join-Path $ScriptDir "scripts\generate-icon.js")
+    throw "assets\icon.ico not found at $iconIco"
 }
 
 # 1. Compile launcher with Windows native csc.exe and embed icon
